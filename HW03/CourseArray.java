@@ -94,6 +94,25 @@ public class CourseArray {
 		}
 	}
 	
+	public void iterate(int shifts, Autoassociator autoassociator) {
+		for (int index = 1; index < elements.length; index++) {
+			elements[index].setForce();
+			for (int move = 1; move <= shifts && elements[index].force != 0; move++) { 
+				elements[index].setForce();
+				elements[index].shift(period);
+			}
+		}
+	
+		int[] slots = new int[elements.length];
+		for (int i = 1; i < elements.length; i++) {
+			slots[i] = elements[i].mySlot;
+		}
+		autoassociator.fullUpdate(slots);
+		for (int i = 1; i < elements.length; i++) {
+			elements[i].mySlot = slots[i];
+		}
+	}
+
 	public void printResult() {
 		for (int i = 1; i < elements.length; i++)
 			System.out.println(i + "\t" + elements[i].mySlot);

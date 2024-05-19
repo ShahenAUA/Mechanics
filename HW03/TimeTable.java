@@ -1,7 +1,5 @@
 import java.awt.*;
 import java.awt.event.*;
-import java.io.FileWriter;
-import java.io.IOException;
 
 import javax.swing.*;
 
@@ -31,17 +29,17 @@ public class TimeTable extends JFrame implements ActionListener {
 	}
 	
 	public void setTools() {
-		String capField[] = {"Slots:", "Courses:", "Clash File:", "Iters:", "Shift:"};
+		String capField[] = {"Slots:", "Courses:", "Clash File:", "Cycles", "Iters:", "Shift:", "Train Slot:"};
 		field = new JTextField[capField.length];
 		
-		String capButton[] = {"Load", "Start", "Step", "Print", "Continue", "Exit"};
+		String capButton[] = {"Load", "Start", "Train", "Step", "Print", "Continue", "Exit", "Trained Start"};
 		tool = new JButton[capButton.length];
 		
 		tools.setLayout(new GridLayout(2 * capField.length + capButton.length, 1));
 		
 		for (int i = 0; i < field.length; i++) {
 			tools.add(new JLabel(capField[i]));
-			field[i] = new JTextField(5);
+			field[i] = new JTextField(7);
 			tools.add(field[i]);
 		}
 		
@@ -51,13 +49,16 @@ public class TimeTable extends JFrame implements ActionListener {
 			tools.add(tool[i]);
 		}
 		
-		// field[0].setText("21");
 		field[0].setText("19");
-		// field[1].setText("486");
 		field[1].setText("181");
-		// field[2].setText("rye-s-93.stu");
 		field[2].setText("yor-f-83.stu");
-		field[3].setText("1");
+		field[3].setText("10");
+
+		// field[0].setText("21");
+		// field[1].setText("486");
+		// field[2].setText("rye-s-93.stu");
+		// field[3].setText("10");
+		field[4].setText("1");
 	}
 	
 	public void draw() {
@@ -89,13 +90,12 @@ public class TimeTable extends JFrame implements ActionListener {
 			draw();
 			break;
 		case 1:
-			trainAutoassociator();
 			min = Integer.MAX_VALUE;
 			step = 0;
 			for (int i = 1; i < courses.length(); i++) courses.setSlot(i, 0);
 			
-			for (int iteration = 1; iteration <= Integer.parseInt(field[3].getText()); iteration++) {
-				courses.iterate(Integer.parseInt(field[4].getText()));
+			for (int iteration = 1; iteration <= Integer.parseInt(field[4].getText()); iteration++) {
+				courses.iterate(Integer.parseInt(field[5].getText()));
 				draw();
 				clashes = courses.clashesLeft();
 				if (clashes < min) {
@@ -103,57 +103,79 @@ public class TimeTable extends JFrame implements ActionListener {
 					step = iteration;
 				}
 			}
-			System.out.println("Shift = " + field[4].getText() + "\tMin clashes = " + min + "\tat step " + step);
+
+			System.out.println("Shift = " + field[5].getText() + "\tMin clashes = " + min + "\tat step " + step);
 			setVisible(true);
 			break;
 		case 2:
-			courses.iterate(Integer.parseInt(field[4].getText()));
-			draw();
+			int trainSlot;
+			if (field[6].getText().equals("")) {
+				trainSlot = (int) (Math.random() * courses.length());
+			}
+			else {
+				trainSlot = Integer.parseInt(field[6].getText());
+			}
+			// System.out.println("Before training:");
+			// autoassociator.printWeights();
+			// printPattern(courses.getTimeSlot(randomSlot));
+
+        	autoassociator.training(courses.getTimeSlot(trainSlot));
+			System.out.println("Training finished with random slot: " + trainSlot);
+
+			// System.out.println("Before training:");
+			// autoassociator.printWeights();
+			// printPattern(courses.getTimeSlot(randomSlot));
+			
 			break;
 		case 3:
+			courses.iterate(Integer.parseInt(field[5].getText()), autoassociator);
+			draw();
+			break;
+		case 4:
 			System.out.println("Exam\tSlot\tClashes");
 			for (int i = 1; i < courses.length(); i++)
 				System.out.println(i + "\t" + courses.slot(i) + "\t" + courses.status(i));
 			break;
-		case 4:
-			courses.iterate(Integer.parseInt(field[4].getText()));
+		case 5:
+			courses.iterate(Integer.parseInt(field[5].getText()), autoassociator);
 			draw();
 			clashes = courses.clashesLeft();
 			System.out.println("Remaining clashes: " + clashes);
 			setVisible(true);
 			break;
-		case 5:
+		case 6:
 			System.exit(0);
+		case 7:
+			min = Integer.MAX_VALUE;
+			step = 0;
+			for (int i = 1; i < courses.length(); i++) courses.setSlot(i, 0);
+			
+			for (int cycle = 1; cycle <= Integer.parseInt(field[3].getText()); cycle++) {
+				for (int iteration = 1; iteration <= Integer.parseInt(field[4].getText()); iteration++) {
+					courses.iterate(Integer.parseInt(field[5].getText()), autoassociator);
+					draw();
+					clashes = courses.clashesLeft();
+					if (clashes < min) {
+						min = clashes;
+						step = iteration;
+					}
+				}
+				int randomSlot = (int) (Math.random() * courses.length());
+				autoassociator.unitUpdate(courses.getTimeSlot(randomSlot));
+			}
+			System.out.println("Shift = " + field[5].getText() + "\tMin clashes = " + min + "\tat step " + step);
+			setVisible(true);
+			break;
 		}
 	}
 
-	private void trainAutoassociator() {
-        int[] clashFreeSlots = findClashFreeSlots();
-        autoassociator.training(clashFreeSlots);
-
-        saveLog(clashFreeSlots);
-    }
-
-    private int[] findClashFreeSlots() {
-		// manually replacable
-		int[] clashFreeSlots = {1, 2, 3, 4};
-        return clashFreeSlots;
-    }
-
-    private void saveLog(int[] clashFreeSlots) {
-        try (FileWriter writer = new FileWriter("timeslots.log")) {
-            writer.write("Number of slots: " + field[0].getText() + "\n");
-            writer.write("Shift: " + field[4].getText() + "\n");
-            writer.write("Iteration index: " + field[3].getText() + "\n");
-
-            writer.write("Timeslot index: ");
-            for (int i = 0; i < clashFreeSlots.length; i++) {
-                writer.write(clashFreeSlots[i] + " ");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    // private void printPattern(int[] pattern) {
+    //     System.out.println("Pattern:");
+    //     for (int value : pattern) {
+    //         System.out.print(value + " ");
+    //     }
+    //     System.out.println();
+    // }
 
 	public static void main(String[] args) {
 		new TimeTable();
